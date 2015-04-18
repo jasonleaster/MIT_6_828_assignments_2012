@@ -43,7 +43,8 @@ struct cmd *parsecmd(char*);
 void
 runcmd(struct cmd *cmd)
 {
-  int p[2], r;
+  int p[2]; // used for pipe line in shell
+  int r;    // return value
   struct execcmd *ecmd;
   struct pipecmd *pcmd;
   struct redircmd *rcmd;
@@ -60,24 +61,58 @@ runcmd(struct cmd *cmd)
     ecmd = (struct execcmd*)cmd;
     if(ecmd->argv[0] == 0)
       exit(0);
-    fprintf(stderr, "exec not implemented\n");
+    //fprintf(stderr, "exec not implemented\n");
     // Your code here ...
+    execv(ecmd->argv[0], ecmd->argv);
+    fprintf(stderr, "execv() %s failed in line %d\n", ecmd->argv[0], __LINE__);
     break;
 
   case '>':
   case '<':
     rcmd = (struct redircmd*)cmd;
-    fprintf(stderr, "redir not implemented\n");
+    //fprintf(stderr, "redir not implemented\n");
     // Your code here ...
+    close(rcmd->fd);
+    if(open(rcmd->file, rcmd->mode) < 0)
+    {
+        fprintf(stderr, "Try to open :%s failed\n", rcmd->file);
+        exit(0);
+    }
     runcmd(rcmd->cmd);
     break;
 
   case '|':
     pcmd = (struct pipecmd*)cmd;
-    fprintf(stderr, "pipe not implemented\n");
+    //fprintf(stderr, "pipe not implemented\n");
     // Your code here ...
+    if(pipe(p) < 0)
+    {
+        fprintf(stderr, "call syscall pipe() failed in line %d\n", __LINE__);
+        exit(0);
+    }
+
+    if(fork1() == 0)
+    {
+        close(1);
+        dup(p[1]);
+        close(p[0]);
+        close(p[1]);
+        runcmd(pcmd->left);
+    }
+
+    if(fork1() == 0)
+    {
+        close(0);
+        dup(p[0]);
+        close(p[0]);
+        close(p[1]);
+        runcmd(pcmd->right);
+    }
+    close(p[0]);
+    close(p[1]);
     break;
   }    
+
   exit(0);
 }
 
