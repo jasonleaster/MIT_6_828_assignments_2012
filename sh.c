@@ -210,38 +210,61 @@ char symbols[] = "<|>";
 int
 gettoken(char **ps, char *es, char **q, char **eq)
 {
-  char *s;
-  int ret;
-  
-  s = *ps;
-  while(s < es && strchr(whitespace, *s))
-    s++;
-  if(q)
-    *q = s;
-  ret = *s;
-  switch(*s){
-  case 0:
-    break;
-  case '|':
-  case '<':
-    s++;
-    break;
-  case '>':
-    s++;
-    break;
-  default:
-    ret = 'a';
-    while(s < es && !strchr(whitespace, *s) && !strchr(symbols, *s))
-      s++;
-    break;
-  }
-  if(eq)
-    *eq = s;
-  
-  while(s < es && strchr(whitespace, *s))
-    s++;
-  *ps = s;
-  return ret;
+    char *s = NULL;
+    int ret = 0;
+
+    s = *ps;
+    /*
+     *  strchr() function returns a pointer to the first occurrence of
+     *  the character @first_parameter in the @second_paramter
+     *  This function would return NULL, if the character is not found
+     */
+    while(s < es && strchr(whitespace, *s))
+    {
+        s++;
+    }
+
+    if(q)
+    {
+        *q = s;
+    }
+
+    ret = *s;
+
+    switch(*s)
+    {
+        case 0:
+            break;
+        case '|':
+        case '<':
+            s++;
+            break;
+        case '>':
+            s++;
+            break;
+        default:
+            ret = 'a';
+
+            while(s < es && !strchr(whitespace, *s) && \
+                 !strchr(symbols, *s))
+            {
+              s++;
+            }
+            break;
+    }
+
+    if(eq)
+    {
+        *eq = s;
+    }
+
+    while(s < es && strchr(whitespace, *s))
+    {
+        s++;
+    }
+
+    *ps = s;
+    return ret;
 }
 
 int
