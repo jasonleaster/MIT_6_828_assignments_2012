@@ -64,6 +64,7 @@ runcmd(struct cmd *cmd)
     //fprintf(stderr, "exec not implemented\n");
     // Your code here ...
     execv(ecmd->argv[0], ecmd->argv);
+    //system(ecmd->argv[0]);
     fprintf(stderr, "execv() %s failed in line %d\n", ecmd->argv[0], __LINE__);
     break;
 
@@ -207,6 +208,11 @@ pipecmd(struct cmd *left, struct cmd *right)
 char whitespace[] = " \t\r\n\v";
 char symbols[] = "<|>";
 
+/*
+ *  Update the inputed command string after we have run a cmd.
+ *  @ps point to the address of the inputed command string.
+ *  This function gettoken() is gona to update this string.
+ */
 int
 gettoken(char **ps, char *es, char **q, char **eq)
 {
@@ -267,8 +273,12 @@ gettoken(char **ps, char *es, char **q, char **eq)
     return ret;
 }
 
-int
-peek(char **ps, char *es, char *toks)
+/*
+ *  Update the string which @ps point to.
+ *  If *s is not '\0' and we could find *s in toks, return 1, 
+ *  otherwise return 0
+ */
+int peek(char **ps, char *es, char *toks)
 {
   char *s;
   
@@ -360,31 +370,39 @@ parseredirs(struct cmd *cmd, char **ps, char *es)
 struct cmd*
 parseexec(char **ps, char *es)
 {
-  char *q, *eq;
-  int tok, argc;
-  struct execcmd *cmd;
-  struct cmd *ret;
-  
-  ret = execcmd();
-  cmd = (struct execcmd*)ret;
+    char *q, *eq;
+    int tok, argc;
+    struct execcmd *cmd;
+    struct cmd *ret;
 
-  argc = 0;
-  ret = parseredirs(ret, ps, es);
-  while(!peek(ps, es, "|")){
-    if((tok=gettoken(ps, es, &q, &eq)) == 0)
-      break;
-    if(tok != 'a') {
-      fprintf(stderr, "syntax error\n");
-      exit(-1);
-    }
-    cmd->argv[argc] = mkcopy(q, eq);
-    argc++;
-    if(argc >= MAXARGS) {
-      fprintf(stderr, "too many args\n");
-      exit(-1);
-    }
+    ret = execcmd();
+    cmd = (struct execcmd*)ret;
+
+    argc = 0;
     ret = parseredirs(ret, ps, es);
-  }
-  cmd->argv[argc] = 0;
-  return ret;
+    while(!peek(ps, es, "|"))
+    {
+        if((tok=gettoken(ps, es, &q, &eq)) == 0)
+            break;
+
+        if(tok != 'a') 
+        {
+            fprintf(stderr, "syntax error\n");
+            exit(-1);
+        }
+
+        cmd->argv[argc] = mkcopy(q, eq);
+        argc++;
+
+        if(argc >= MAXARGS) 
+        {
+            fprintf(stderr, "too many args\n");
+            exit(-1);
+        }
+
+        ret = parseredirs(ret, ps, es);
+    }
+
+    cmd->argv[argc] = 0;
+    return ret;
 }
