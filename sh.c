@@ -63,8 +63,19 @@ runcmd(struct cmd *cmd)
       exit(0);
     //fprintf(stderr, "exec not implemented\n");
     // Your code here ...
-    execv(ecmd->argv[0], ecmd->argv);
-    //system(ecmd->argv[0]);
+    if (access(ecmd->argv[0], S_IXUSR | S_IRUSR) == 0)
+    {
+        execv(ecmd->argv[0], ecmd->argv);
+    }
+    else
+    {
+        if(chdir("/bin/") < 0)
+        {
+            printf("change directory failed in line %d\n", __LINE__);
+            exit(0);
+        }
+        execv(ecmd->argv[0], ecmd->argv);
+    }
     fprintf(stderr, "execv() %s failed in line %d\n", ecmd->argv[0], __LINE__);
     break;
 
@@ -109,8 +120,11 @@ runcmd(struct cmd *cmd)
         close(p[1]);
         runcmd(pcmd->right);
     }
+
     close(p[0]);
     close(p[1]);
+    wait();
+    wait();
     break;
   }    
 
@@ -122,7 +136,7 @@ getcmd(char *buf, int nbuf)
 {
   
   if (isatty(fileno(stdin)))
-    fprintf(stdout, "$ ");
+    fprintf(stdout, "EOF's Shell >>> ");
   memset(buf, 0, nbuf);
   fgets(buf, nbuf, stdin);
   if(buf[0] == 0) // EOF
@@ -130,27 +144,38 @@ getcmd(char *buf, int nbuf)
   return 0;
 }
 
-int
-main(void)
+int main(int argc, char *argv[])
 {
-  static char buf[100];
-  int fd, r;
+    static char buf[100];
+    int fd, r;
 
-  // Read and run input commands.
-  while(getcmd(buf, sizeof(buf)) >= 0){
-    if(buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' '){
-      // Clumsy but will have to do for now.
-      // Chdir has no effect on the parent if run in the child.
-      buf[strlen(buf)-1] = 0;  // chop \n
-      if(chdir(buf+3) < 0)
-        fprintf(stderr, "cannot cd %s\n", buf+3);
-      continue;
+    // Read and run input commands.
+    while(getcmd(buf, sizeof(buf)) >= 0)
+    {
+        if(buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' ')
+        {
+            // Clumsy but will have to do for now.
+            // Chdir has no effect on the parent if run in the child.
+            buf[strlen(buf)-1] = 0;  // chop \n
+            if(chdir(buf+3) < 0)
+                fprintf(stderr, "cannot cd %s\n", buf+3);
+
+            continue;
+        }
+        else if(buf[0] == 'q' && buf[1] == 'u' &&\
+                buf[2] == 'i' && buf[3] == 't')
+        {
+            printf("GoodBye :)\n");
+            return 0;
+        }
+
+        if(fork1() == 0)
+            runcmd(parsecmd(buf));
+
+        wait(&r);
     }
-    if(fork1() == 0)
-      runcmd(parsecmd(buf));
-    wait(&r);
-  }
-  exit(0);
+
+    exit(0);
 }
 
 int
@@ -346,25 +371,31 @@ parsepipe(char **ps, char *es)
 struct cmd*
 parseredirs(struct cmd *cmd, char **ps, char *es)
 {
-  int tok;
-  char *q, *eq;
+    int tok;
+    char *q, *eq;
 
-  while(peek(ps, es, "<>")){
-    tok = gettoken(ps, es, 0, 0);
-    if(gettoken(ps, es, &q, &eq) != 'a') {
-      fprintf(stderr, "missing file for redirection\n");
-      exit(-1);
+    while(peek(ps, es, "<>"))
+    {
+        tok = gettoken(ps, es, 0, 0);
+        if(gettoken(ps, es, &q, &eq) != 'a') 
+        {
+            fprintf(stderr, "missing file for redirection\n");
+            exit(-1);
+        }
+
+        switch(tok)
+        {
+            case '<':
+                cmd = redircmd(cmd, mkcopy(q, eq), '<');
+                break;
+
+            case '>':
+                cmd = redircmd(cmd, mkcopy(q, eq), '>');
+                break;
+        }
     }
-    switch(tok){
-    case '<':
-      cmd = redircmd(cmd, mkcopy(q, eq), '<');
-      break;
-    case '>':
-      cmd = redircmd(cmd, mkcopy(q, eq), '>');
-      break;
-    }
-  }
-  return cmd;
+
+    return cmd;
 }
 
 struct cmd*
