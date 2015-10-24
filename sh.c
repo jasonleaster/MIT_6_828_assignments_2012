@@ -1,3 +1,26 @@
+/***************************************************************
+Programmer  :   EOF
+Date        :   2015.04.19
+File        :   sh.c
+E-mail      :   jasonleaster@gmail.com
+
+Code Desciption:
+
+    Here is a simplifed Shell which I modified from xv6's shell.
+It's more friendly and convient after I make this shell have the
+privilege to access directory "/bin/" and call little programs
+under this directory.
+
+    It's fantastic to change this shell more convient. I hope
+someone who is interesting on this program to change it into
+a more powerful one.
+
+    If there is something wrong with my code, please touch me
+by e-mail. Thank you :)
+
+****************************************************************/
+
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -63,7 +86,8 @@ runcmd(struct cmd *cmd)
       exit(0);
     //fprintf(stderr, "exec not implemented\n");
     // Your code here ...
-    if (access(ecmd->argv[0], S_IXUSR | S_IRUSR) == 0)
+    //if (access(ecmd->argv[0], S_IXUSR | S_IRUSR) == 0)
+    if (access(ecmd->argv[0], X_OK | R_OK) == 0)
     {
         execv(ecmd->argv[0], ecmd->argv);
     }
@@ -210,7 +234,7 @@ redircmd(struct cmd *subcmd, char *file, int type)
   cmd->type = type;
   cmd->cmd = subcmd;
   cmd->file = file;
-  cmd->mode = (type == '<') ?  O_RDONLY : O_WRONLY|O_CREAT|O_TRUNC;
+  cmd->mode = (type == '<') ?  O_RDONLY : (O_RDWR | O_CREAT | O_TRUNC);
   cmd->fd = (type == '<') ? 0 : 1;
   return (struct cmd*)cmd;
 }
